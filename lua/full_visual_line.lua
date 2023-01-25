@@ -144,4 +144,9 @@ function M.toggle()
 	end
 end
 
+-- Just in case
+function M.setup(opts)
+	M.enable()
+end
+
 return M
