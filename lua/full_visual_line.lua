@@ -15,7 +15,8 @@ do
 		-- escape and reenter 'V' mode to refresh '< and '> marks.
 		-- This cause a lot of glitchy looking blinking for concealed text
 		-- if 'concealcursor' doesn't include 'v'
-		vim.cmd.norm(a.nvim_replace_termcodes('<esc>gv', true, false, true))
+		local keys = a.nvim_replace_termcodes('<esc>gv', true, false, true)
+		a.nvim_feedkeys(keys, 'x!', false)
 		local start_line, end_line  = a.nvim_buf_get_mark(0, '<')[1], a.nvim_buf_get_mark(0, '>')[1]
 
 		if reset or visual_line_state == nil then
