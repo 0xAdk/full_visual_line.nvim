@@ -23,6 +23,9 @@ do
 		visual_line_state.start = start_line
 		visual_line_state._end = end_line
 
+		visual_line_state.start_move_delta = visual_line_state.start - visual_line_state.old_start
+		visual_line_state.end_move_delta = visual_line_state._end - visual_line_state.old_end
+
 		return visual_line_state
 	end
 
@@ -60,62 +63,48 @@ function M._handle_autocmd(opts)
 		return
 	end
 
-	M._update_visual_line_state()
+	local state = M._update_visual_line_state()
 
 	if opts.event == 'ModeChanged' then
 		M._redraw_all_lines()
-	end
-
-	local autocmd_state = M._get_visual_line_state()
-
-	if
-		autocmd_state.old_start == autocmd_state.start
-		and autocmd_state.old_end == autocmd_state._end
-	then
-		-- abort since nothing has changed
 		return
 	end
 
-	local start_moved = autocmd_state.old_start ~= autocmd_state.start
-	local end_moved = autocmd_state.old_end ~= autocmd_state._end
-
-	-- figure out which end of the selection has changed. Then add or remove line highlights accordingly.
-	-- If both ends have changed just clear and redraw everything
-	if start_moved and not end_moved then
-		local move_delta = autocmd_state.start - autocmd_state.old_start
-
-		if move_delta < 0 then
-			-- ........S____E..
-			-- ...+++++........
-			-- ...S_________E..
-			for line = autocmd_state.start, autocmd_state.old_start - 1 do
-				a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
-			end
-		else
-			-- ...S_________E..
-			-- ...-----........
-			-- ........S____E..
-			a.nvim_buf_clear_namespace(0, nsid, autocmd_state.old_start - 1, autocmd_state.start - 1)
-		end
-	elseif end_moved and not start_moved then
-		local move_delta = autocmd_state._end - autocmd_state.old_end
-
-		if move_delta > 0 then
-			-- ...S____E.......
-			-- .........+++++..
-			-- ...S_________E..
-			for line = autocmd_state.old_end + 1, autocmd_state._end do
-				a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
-			end
-		else
-			-- ...S_________E..
-			-- .........-----..
-			-- ...S____E.......
-			a.nvim_buf_clear_namespace(0, nsid, autocmd_state._end, autocmd_state.old_end)
-		end
-	else
-		M._redraw_all_lines()
+	-- nothing changed
+	if state.start_move_delta == 0 and state.end_move_delta == 0 then
+		return
 	end
+
+	-- add/remove selection lines from the start/end depending on which moved
+	-- if both the start and end have moved just clear and redraw everything
+	--
+	-- `s` = old start, `S` = new start, `e` = old end, `E` = new end
+	-- `_` = current vis line, `-` = remove vis line, `+` = add vis line
+	if state.start_move_delta ~= 0 and state.end_move_delta ~= 0 then
+		M._redraw_all_lines()
+	elseif state.start_move_delta < 0 then
+		-- ...S<+++s____E..
+		M._draw_lines_in_range(state.start, state.old_start - 1)
+	elseif state.start_move_delta > 0 then
+		-- ...s--->S____E..
+		M._clear_lines_in_range(state.old_start - 1, state.start - 1)
+	elseif state.end_move_delta > 0 then
+		-- ...S____e+++>E..
+		M._draw_lines_in_range(state.old_end + 1, state._end)
+	elseif state.end_move_delta < 0 then
+		-- ...S____E<---e..
+		M._clear_lines_in_range(state._end, state.old_end)
+	end
+end
+
+function M._draw_lines_in_range(range_start, range_end)
+	for line = range_start, range_end do
+		a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
+	end
+end
+
+function M._clear_lines_in_range(range_start, range_end)
+	a.nvim_buf_clear_namespace(0, nsid, range_start, range_end)
 end
 
 function M._cleanup()
