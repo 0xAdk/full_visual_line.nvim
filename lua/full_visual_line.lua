@@ -41,15 +41,6 @@ do
 	end
 end
 
-function M._redraw_all_lines()
-	local lines = M._get_visual_line_state()
-
-	a.nvim_buf_clear_namespace(0, nsid, 0, -1)
-	for line = lines.start, lines._end do
-		a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
-	end
-end
-
 function M._setup_autocmd()
 	a.nvim_create_autocmd({ 'CursorMoved', 'ModeChanged' }, {
 		group = autocmd_group,
@@ -57,16 +48,20 @@ function M._setup_autocmd()
 	})
 end
 
+function M._remove_autocmd()
+	a.nvim_clear_autocmds { group = group_name }
+end
+
 function M._handle_autocmd(opts)
 	if a.nvim_get_mode().mode ~= 'V' then
-		a.nvim_buf_clear_namespace(0, nsid, 0, -1)
+		M._clear_lines()
 		return
 	end
 
 	local state = M._update_visual_line_state()
 
 	if opts.event == 'ModeChanged' then
-		M._redraw_all_lines()
+		M._redraw_lines(state.start, state._end)
 		return
 	end
 
@@ -81,7 +76,7 @@ function M._handle_autocmd(opts)
 	-- `s` = old start, `S` = new start, `e` = old end, `E` = new end
 	-- `_` = current vis line, `-` = remove vis line, `+` = add vis line
 	if state.start_move_delta ~= 0 and state.end_move_delta ~= 0 then
-		M._redraw_all_lines()
+		M._redraw_lines(state.start, state._end)
 	elseif state.start_move_delta < 0 then
 		-- ...S<+++s____E..
 		M._draw_lines_in_range(state.start, state.old_start - 1)
@@ -97,10 +92,19 @@ function M._handle_autocmd(opts)
 	end
 end
 
+function M._redraw_lines(start, _end)
+	M._clear_lines()
+	M._draw_lines_in_range(start, _end)
+end
+
 function M._draw_lines_in_range(range_start, range_end)
 	for line = range_start, range_end do
 		a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
 	end
+end
+
+function M._clear_lines()
+	a.nvim_buf_clear_namespace(0, nsid, 0, -1)
 end
 
 function M._clear_lines_in_range(range_start, range_end)
@@ -108,8 +112,8 @@ function M._clear_lines_in_range(range_start, range_end)
 end
 
 function M._cleanup()
-	a.nvim_clear_autocmds { group = group_name }
-	a.nvim_buf_clear_namespace(0, nsid, 0, -1)
+	M._remove_autocmd()
+	M._clear_lines()
 end
 
 function M.disable()
@@ -122,8 +126,8 @@ function M.enable()
 
 	-- the plugin got turned on while already in visual line mode
 	if a.nvim_get_mode().mode == 'V' then
-		M._update_visual_line_state()
-		M._redraw_all_lines()
+		local state = M._update_visual_line_state()
+		M._redraw_lines(state.start, state._end)
 	end
 end
 
