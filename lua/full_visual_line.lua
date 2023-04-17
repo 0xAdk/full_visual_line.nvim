@@ -61,7 +61,8 @@ function M._handle_autocmd(opts)
 	local state = M._update_visual_line_state()
 
 	if opts.event == 'ModeChanged' then
-		M._redraw_lines(state.start, state._end)
+		M._clear_lines()
+		M._draw_lines_in_range(state.start, state._end)
 		return
 	end
 
@@ -76,7 +77,8 @@ function M._handle_autocmd(opts)
 	-- `s` = old start, `S` = new start, `e` = old end, `E` = new end
 	-- `_` = current vis line, `-` = remove vis line, `+` = add vis line
 	if state.start_move_delta ~= 0 and state.end_move_delta ~= 0 then
-		M._redraw_lines(state.start, state._end)
+		M._clear_lines()
+		M._draw_lines_in_range(state.start, state._end)
 	elseif state.start_move_delta < 0 then
 		-- ...S<+++s____E..
 		M._draw_lines_in_range(state.start, state.old_start - 1)
@@ -90,11 +92,6 @@ function M._handle_autocmd(opts)
 		-- ...S____E<---e..
 		M._clear_lines_in_range(state._end, state.old_end)
 	end
-end
-
-function M._redraw_lines(start, _end)
-	M._clear_lines()
-	M._draw_lines_in_range(start, _end)
 end
 
 function M._draw_lines_in_range(range_start, range_end)
@@ -126,8 +123,10 @@ function M.enable()
 
 	-- the plugin got turned on while already in visual line mode
 	if a.nvim_get_mode().mode == 'V' then
+		M._clear_lines()
+
 		local state = M._update_visual_line_state()
-		M._redraw_lines(state.start, state._end)
+		M._draw_lines_in_range(state.start, state._end)
 	end
 end
 
