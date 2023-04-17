@@ -11,25 +11,30 @@ do
 		return visual_line_state
 	end
 
-	function M._update_visual_line_state(reset)
-		-- escape and reenter 'V' mode to refresh '< and '> marks.
-		-- This cause a lot of glitchy looking blinking for concealed text
-		-- if 'concealcursor' doesn't include 'v'
-		local keys = a.nvim_replace_termcodes('<esc>gv', true, false, true)
-		a.nvim_feedkeys(keys, 'x!', false)
-		local start_line, end_line  = a.nvim_buf_get_mark(0, '<')[1], a.nvim_buf_get_mark(0, '>')[1]
+	function M._update_visual_line_state()
+		local start_line, end_line = M._get_selection_range()
 
-		if reset or visual_line_state == nil then
-			visual_line_state = {
-				old_start = start_line, old_end = end_line,
-				start = start_line, _end = end_line,
-			}
+		if visual_line_state == nil then
+			visual_line_state = { old_start = start_line, old_end = end_line }
 		else
-			visual_line_state = {
-				old_start = visual_line_state.start, old_end = visual_line_state._end,
-				start = start_line, _end = end_line,
-			}
+			visual_line_state = { old_start = visual_line_state.start, old_end = visual_line_state._end }
 		end
+
+		visual_line_state.start = start_line
+		visual_line_state._end = end_line
+
+		return visual_line_state
+	end
+
+	function M._get_selection_range()
+		local start_line, end_line  = vim.fn.line 'v', vim.fn.line '.'
+
+		-- ensure the start line is always less than or equal to the end line
+		if start_line > end_line then
+			start_line, end_line = end_line, start_line
+		end
+
+		return start_line, end_line
 	end
 end
 
