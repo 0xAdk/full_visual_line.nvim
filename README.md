@@ -12,17 +12,30 @@ A simple plugin that highlights whole lines in linewise visual mode (`V`)
 
 </details>
 
-## Installation Example
+## Installation
+<details open>
+<summary>lazy.nvim</summary>
+
+> [folke/lazy.nvim](https://github.com/folke/lazy.nvim)
+```lua
+{
+    '0xAdk/full_visual_line.nvim',
+    keys = 'V',
+    opts = {},
+}
+```
+</details>
+
 <details>
 <summary>packer.nvim</summary>
 
 > [wbthomason/packer.nvim](https://github.com/wbthomason/packer.nvim)
 ```lua
 use {
-	'0xAdk/full_visual_line.nvim',
-	config = function ()
-		require 'full_visual_line'.setup {}
-	end
+    '0xAdk/full_visual_line.nvim',
+    config = function ()
+        require 'full_visual_line'.setup {}
+    end
 }
 ```
 </details>

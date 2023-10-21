@@ -23,7 +23,7 @@ function M.enable()
 	internal.cleanup()
 	internal.setup_autocmd()
 
-	-- the plugin got turned on while already in visual line mode
+	-- the plugin got enabled while already in visual line mode
 	if vim.api.nvim_get_mode().mode == 'V' then
 		internal.clear_lines()
 
