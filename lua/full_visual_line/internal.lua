@@ -12,7 +12,7 @@ end
 function M.setup_autocmd()
 	a.nvim_create_autocmd({ 'CursorMoved', 'ModeChanged' }, {
 		group = autocmd_group,
-		callback = M.handle_autocmd,
+		callback = vim.schedule_wrap(M.handle_autocmd),
 	})
 end
 
