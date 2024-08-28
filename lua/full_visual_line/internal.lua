@@ -2,36 +2,36 @@ local M = {}
 local group_name = 'full_line_visual_mode'
 
 local a = vim.api
-local autocmd_group = a.nvim_create_augroup(group_name, { clear = true })
-local nsid = a.nvim_create_namespace(group_name)
+M.autocmd_group = a.nvim_create_augroup(group_name, { clear = true })
+M.nsid = a.nvim_create_namespace(group_name)
 
 function M.is_autocmd_setup()
-	return not vim.tbl_isempty(a.nvim_get_autocmds { group = group_name })
+	return not vim.tbl_isempty(a.nvim_get_autocmds { group = M.autocmd_group })
 end
 
 function M.setup_autocmd()
 	a.nvim_create_autocmd({ 'CursorMoved', 'ModeChanged' }, {
-		group = autocmd_group,
+		group = M.autocmd_group,
 		callback = vim.schedule_wrap(M.handle_autocmd),
 	})
 end
 
 function M.remove_autocmd()
-	a.nvim_clear_autocmds { group = group_name }
+	a.nvim_clear_autocmds { group = M.autocmd_group }
 end
 
 function M.draw_lines_in_range(range_start, range_end)
 	for line = range_start, range_end do
-		a.nvim_buf_set_extmark(0, nsid, line - 1, 0, { line_hl_group = 'Visual' })
+		a.nvim_buf_set_extmark(0, M.nsid, line - 1, 0, { line_hl_group = 'Visual' })
 	end
 end
 
 function M.clear_lines()
-	a.nvim_buf_clear_namespace(0, nsid, 0, -1)
+	a.nvim_buf_clear_namespace(0, M.nsid, 0, -1)
 end
 
 function M.clear_lines_in_range(range_start, range_end)
-	a.nvim_buf_clear_namespace(0, nsid, range_start, range_end)
+	a.nvim_buf_clear_namespace(0, M.nsid, range_start, range_end)
 end
 
 function M.cleanup()
@@ -65,7 +65,7 @@ function M.update_visual_line_state()
 end
 
 function M.get_selection_range()
-	local start_line, end_line  = vim.fn.line 'v', vim.fn.line '.'
+	local start_line, end_line = vim.fn.line 'v', vim.fn.line '.'
 
 	-- ensure the start line is always less than or equal to the end line
 	if start_line > end_line then
