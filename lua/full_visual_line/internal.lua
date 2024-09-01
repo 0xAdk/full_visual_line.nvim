@@ -1,9 +1,29 @@
+local Rgb = require 'full_visual_line.internal.color'.Rgb
+
 local M = {}
 local group_name = 'full_line_visual_mode'
 
 local a = vim.api
 M.autocmd_group = a.nvim_create_augroup(group_name, { clear = true })
 M.nsid = a.nvim_create_namespace(group_name)
+
+function M.setup_highlights()
+	a.nvim_set_hl(0, 'VisualCursorLineNr', { default = true, link = 'CursorLineNr' })
+
+	local line_nr = Rgb.get_hl(0, { name = 'LineNr' })
+	local cursor_line_nr = Rgb.get_hl(0, { name = 'VisualCursorLineNr' })
+
+	local fg, bg
+	if line_nr.fg ~= nil and cursor_line_nr.fg ~= nil then
+		fg = line_nr.fg:blend(cursor_line_nr.fg, 0.5):to_number()
+	end
+
+	if line_nr.bg ~= nil and cursor_line_nr.bg ~= nil then
+		bg = line_nr.bg:blend(cursor_line_nr.bg, 0.5):to_number()
+	end
+
+	a.nvim_set_hl(0, 'VisualLineNr', { default = true, fg = fg, bg = bg })
+end
 
 function M.is_autocmd_setup()
 	return not vim.tbl_isempty(a.nvim_get_autocmds { group = M.autocmd_group })
@@ -20,9 +40,69 @@ function M.remove_autocmd()
 	a.nvim_clear_autocmds { group = M.autocmd_group }
 end
 
+function M.get_cursor_line_nr_fg()
+	local hl = vim.api.nvim_get_hl(0, { name = 'CursorLineNr' })
+
+	if hl == vim.empty_dict() then
+		return nil
+	end
+
+	return hl.fg
+end
+
+function M.in_visual_or_select_mode()
+	local modes = {
+		'v', 'vs',
+		'V', 'Vs',
+		'', 's',
+		's',
+		'S',
+		'',
+	}
+
+	return vim.tbl_contains(modes, a.nvim_get_mode().mode)
+end
+
+function M.in_visual_or_select_line_mode()
+	local modes = { 'V', 'Vs', 'S' }
+
+	return vim.tbl_contains(modes, a.nvim_get_mode().mode)
+end
+
+function M.is_nr_highlights_enabled()
+	if not vim.wo.cursorline then
+		return false
+	end
+
+	local opt = vim.wo.cursorlineopt
+	return opt:match 'both' ~= nil
+		or opt:match 'number' ~= nil
+end
+
+function M.draw_cursor_number_hl()
+	local start, _end = M.get_selection_range()
+	a.nvim_buf_set_extmark(0, M.nsid, start - 1, 0, { number_hl_group = 'VisualLineNr' })
+	a.nvim_buf_set_extmark(0, M.nsid, _end - 1, 0, { number_hl_group = 'VisualLineNr' })
+
+	local pos = a.nvim_win_get_cursor(0)
+	a.nvim_buf_set_extmark(0, M.nsid, pos[1] - 1, 0, {
+		number_hl_group = 'VisualCursorLineNr'
+	})
+end
+
 function M.draw_lines_in_range(range_start, range_end)
 	for line = range_start, range_end do
-		a.nvim_buf_set_extmark(0, M.nsid, line - 1, 0, { line_hl_group = 'Visual' })
+		a.nvim_buf_set_extmark(0, M.nsid, line - 1, 0, {
+			line_hl_group = 'Visual',
+		})
+	end
+end
+
+function M.draw_numbers_in_range(range_start, range_end)
+	for line = range_start, range_end do
+		a.nvim_buf_set_extmark(0, M.nsid, line - 1, 0, {
+			number_hl_group = 'VisualLineNr',
+		})
 	end
 end
 
@@ -76,7 +156,7 @@ function M.get_selection_range()
 end
 
 function M.handle_autocmd(opts)
-	if a.nvim_get_mode().mode ~= 'V' then
+	if not M.in_visual_or_select_mode() then
 		M.clear_lines()
 		return
 	end
@@ -85,12 +165,22 @@ function M.handle_autocmd(opts)
 
 	if opts.event == 'ModeChanged' then
 		M.clear_lines()
-		M.draw_lines_in_range(state.start, state._end)
+		if M.in_visual_or_select_line_mode() then
+			M.draw_lines_in_range(state.start, state._end)
+		end
+
+		if M.is_nr_highlights_enabled() then
+			M.draw_numbers_in_range(state.start, state._end)
+			M.draw_cursor_number_hl()
+		end
 		return
 	end
 
 	-- nothing changed
 	if state.start_move_delta == 0 and state.end_move_delta == 0 then
+		if M.is_nr_highlights_enabled() then
+			M.draw_cursor_number_hl()
+		end
 		return
 	end
 
@@ -104,16 +194,36 @@ function M.handle_autocmd(opts)
 		M.draw_lines_in_range(state.start, state._end)
 	elseif state.start_move_delta < 0 then
 		-- ...S<+++s____E..
-		M.draw_lines_in_range(state.start, state.old_start - 1)
+		if M.in_visual_or_select_line_mode() then
+			M.draw_lines_in_range(state.start, state.old_start - 1)
+		end
+
+		if M.is_nr_highlights_enabled() then
+			-- off by one due to the current line having a different highlight
+			-- then the body of the visual selection
+			M.draw_numbers_in_range(state.start, state.old_start)
+		end
 	elseif state.start_move_delta > 0 then
 		-- ...s--->S____E..
 		M.clear_lines_in_range(state.old_start - 1, state.start - 1)
 	elseif state.end_move_delta > 0 then
 		-- ...S____e+++>E..
-		M.draw_lines_in_range(state.old_end + 1, state._end)
+		if M.in_visual_or_select_line_mode() then
+			M.draw_lines_in_range(state.old_end + 1, state._end)
+		end
+
+		if M.is_nr_highlights_enabled() then
+			-- off by one due to the current line having a different highlight
+			-- then the body of the visual selection
+			M.draw_numbers_in_range(state.old_end, state._end)
+		end
 	elseif state.end_move_delta < 0 then
 		-- ...S____E<---e..
 		M.clear_lines_in_range(state._end, state.old_end)
+	end
+
+	if M.is_nr_highlights_enabled() then
+		M.draw_cursor_number_hl()
 	end
 end
 
