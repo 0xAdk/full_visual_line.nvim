@@ -30,6 +30,19 @@ A simple plugin that highlights whole lines in linewise visual mode (`V`)
 </details>
 
 <details>
+<summary>`vim.pack`</summary>
+
+> [`vim.pack`](https://neovim.io/doc/user/pack/#vim.pack)
+```lua
+vim.pack.add {
+    'https://github.com/0xAdk/full_visual_line.nvim',
+}
+
+require 'full_visual_line'.setup {}
+```
+</details>
+
+<details>
 <summary>packer.nvim</summary>
 
 > [wbthomason/packer.nvim](https://github.com/wbthomason/packer.nvim)
