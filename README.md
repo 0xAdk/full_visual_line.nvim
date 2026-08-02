@@ -13,6 +13,10 @@ A simple plugin that highlights whole lines in linewise visual mode (`V`)
 </details>
 
 ## Installation
+
+> [!IMPORTANT]
+> This plugin does not support lazy-loading.
+
 <details open>
 <summary>lazy.nvim</summary>
 
@@ -20,7 +24,6 @@ A simple plugin that highlights whole lines in linewise visual mode (`V`)
 ```lua
 {
     '0xAdk/full_visual_line.nvim',
-    keys = 'V',
     opts = {},
 }
 ```
